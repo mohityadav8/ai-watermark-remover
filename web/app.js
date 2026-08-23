@@ -44,30 +44,9 @@ async function checkHealth() {
   try {
     const h = await api("/health");
     setStatus("up", `online · v${h.version || "?"}`);
-    loadCaps();
   } catch { setStatus("down", "offline — is the engine running?"); }
 }
 function setStatus(cls, text) { $("statusDot").className = `dot ${cls}`; $("statusText").textContent = text; }
-async function loadCaps() {
-  try { renderCaps(await api("/capabilities")); } catch { }
-}
-function renderCaps(c) {
-  const el = $("capsList"); el.innerHTML = "";
-  const t = c.tools || {}, px = c.pixel_backends || {}, sc = c.scorers || {};
-  const rows = [
-    ["exiftool", t.exiftool, "metadata strip"],
-    ["qpdf", t.qpdf, "PDF rewrite"],
-    ["ghostscript", t.ghostscript, "PDF deep images"],
-    ["c2patool", t.c2patool, "C2PA inspect"],
-    ["ctrlregen", px.ctrlregen, "pixel removal"],
-    ["stylometry", sc.stylometry, "AI-likelihood"],
-  ];
-  rows.forEach(([n, on, v]) => {
-    const d = document.createElement("div"); d.className = "cap";
-    d.innerHTML = `<span class="d ${on ? "on" : "off"}"></span><span class="name">${n}</span><span class="val ${on ? "on" : ""}">${on ? v : "n/a"}</span>`;
-    el.appendChild(d);
-  });
-}
 
 /* ==================== invisible-char detection ==================== */
 // Map a codepoint to a short label, or null if it's ordinary text.
