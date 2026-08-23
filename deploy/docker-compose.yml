@@ -1,0 +1,50 @@
+# Full-stack bring-up: web UI (nginx) + cleaning engine (Python service).
+#
+#   cd deploy
+#   cp .env.example .env        # optional — edit to set an API key
+#   docker compose up --build -d
+#   open http://localhost:8080
+#
+# Only the web container publishes a host port. wr-core is reachable only on
+# the internal compose network (defence in depth: the engine is never exposed
+# to the host or the internet directly — all traffic goes through nginx).
+
+name: ai-watermark-remover-app
+
+services:
+  # ---- cleaning engine (Python stdlib HTTP service) ----
+  wr-core:
+    build:
+      context: ../service
+      dockerfile: Dockerfile
+    image: ai-watermark-remover:latest
+    environment:
+      # Empty = no auth. Set WATERMARKS_SERVER_API_KEY in .env to require
+      # `Authorization: Bearer <key>` on every API call.
+      WATERMARKS_SERVER_API_KEY: ${WATERMARKS_SERVER_API_KEY:-}
+      WATERMARKS_SERVER_VERSION: ${WATERMARKS_SERVER_VERSION:-1.0.0}
+      # Optional SynthID image-scoring sidecar (see the upstream README).
+      WATERMARKS_SYNTHID_SCORER_URL: ${WATERMARKS_SYNTHID_SCORER_URL:-}
+      WATERMARKS_SYNTHID_SCORER_API_KEY: ${WATERMARKS_SYNTHID_SCORER_API_KEY:-}
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    user: "10001:10001"
+    restart: unless-stopped
+    # No host port: only wr-web (on the internal network) talks to it.
+    expose:
+      - "8765"
+
+  # ---- web UI + reverse proxy ----
+  wr-web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    image: ai-watermark-remover-web:latest
+    depends_on:
+      - wr-core
+    ports:
+      # host:container — change 8080 to 80 for a bare public server.
+      - "${WEB_PORT:-8080}:80"
+    restart: unless-stopped

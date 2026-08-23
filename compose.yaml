@@ -1,0 +1,157 @@
+# Whole-infra bring-up for ai-watermark-remover.
+#
+#   docker compose up --build -d            # core HTTP service only
+#   docker compose --profile harness up --build -d   # + markllm / markdiffusion harnesses
+#   docker compose --profile heavy up --build -d     # + ctrlregen / synthid (local builds)
+#
+# The skill and any web app talk to the wr-core service at http://127.0.0.1:8765
+# (loopback-only host mapping). The heavy/harness images are one-shot CLIs:
+# `up` starts them with `--help` to confirm the image, and real jobs run via
+# `docker compose run`, e.g.:
+#   docker compose run --rm wr-ctrlregen /data/shot.png -o /data/out.png
+#
+# ctrlregen and synthid bake in upstream code that is not publicly
+# redistributable (all-rights-reserved / non-commercial Research License), so
+# they build from source locally and are never pushed to GHCR.
+
+name: ai-watermark-remover
+
+services:
+  wr-core:
+    build:
+      context: service
+      dockerfile: Dockerfile
+    image: ghcr.io/mohityadav8/ai-watermark-remover:latest
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      # Empty by default (no auth). Set to require `Authorization: Bearer <key>`.
+      WATERMARKS_SERVER_API_KEY: ${WATERMARKS_SERVER_API_KEY:-}
+      # Optional SynthID image scorer sidecar (heavy profile).
+      WATERMARKS_SYNTHID_SCORER_URL: ${WATERMARKS_SYNTHID_SCORER_URL:-}
+      WATERMARKS_SYNTHID_SCORER_API_KEY: ${WATERMARKS_SYNTHID_SCORER_API_KEY:-}
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    user: "10001:10001"
+    restart: unless-stopped
+
+  wr-markllm:
+    profiles: [harness]
+    build:
+      context: service
+      dockerfile: Dockerfile.markllm
+    image: ghcr.io/mohityadav8/ai-watermark-remover:markllm-latest
+    # One-shot CLI: `up` just confirms the image; run real jobs with
+    # `docker compose run --rm wr-markllm detect /data/wm.txt --scheme kgw`.
+    command: ["--help"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    user: "10001:10001"
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HOME: /home/markllm/.cache/huggingface
+      # Layer B rewrite backend (openai-compatible / ollama).
+      WATERMARKS_REWRITE_BACKEND: ${WATERMARKS_REWRITE_BACKEND:-}
+      WATERMARKS_REWRITE_MODEL: ${WATERMARKS_REWRITE_MODEL:-}
+      WATERMARKS_REWRITE_BASE_URL: ${WATERMARKS_REWRITE_BASE_URL:-}
+      WATERMARKS_REWRITE_API_KEY: ${WATERMARKS_REWRITE_API_KEY:-}
+      WATERMARKS_REWRITE_ALLOW_REMOTE: ${WATERMARKS_REWRITE_ALLOW_REMOTE:-}
+      WATERMARKS_REWRITE_REASONING_EFFORT: ${WATERMARKS_REWRITE_REASONING_EFFORT:-}
+    volumes:
+      - markllm-cache:/home/markllm/.cache/huggingface
+      # Writable output for the benchmark + the bundled seed corpus (the
+      # build context is service/, so the corpus is mounted at runtime):
+      #   docker compose run --rm wr-markllm \
+      #     /app/bench_synthid_text.py --markllm-dir /opt/markllm \
+      #     --corpus /bench-corpus --out-dir /data ...
+      - bench-out:/data
+      - ./benchmarks/corpus:/bench-corpus:ro
+
+  wr-markdiffusion:
+    profiles: [harness]
+    build:
+      context: service
+      dockerfile: Dockerfile.markdiffusion
+    image: ghcr.io/mohityadav8/ai-watermark-remover:markdiffusion-latest
+    command: ["--help"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    user: "10001:10001"
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HOME: /home/markdiffusion/.cache/huggingface
+    volumes:
+      - markdiffusion-cache:/home/markdiffusion/.cache/huggingface
+
+  wr-ctrlregen:
+    profiles: [heavy]
+    build:
+      context: service
+      dockerfile: Dockerfile.ctrlregen
+    # Local-only tag: upstream `noai-watermark` ships no LICENSE (all-rights-
+    # reserved), so this image is never published.
+    image: ai-watermark-remover-ctrlregen:local
+    command: ["--help"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    user: "10001:10001"
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      NOAI_WATERMARK_DIR: /opt/noai-watermark
+    volumes:
+      - ctrlregen-cache:/home/remover/.cache/huggingface
+
+  wr-synthid:
+    profiles: [heavy]
+    build:
+      context: service
+      dockerfile: Dockerfile.synthid
+    # Local-only tag: upstream `reverse-SynthID` is under a non-commercial
+    # Research License, so this image is never published.
+    image: ai-watermark-remover-synthid-scorer:local
+    command: ["--help"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    user: "10001:10001"
+    volumes:
+      - synthid-cache:/home/scorer/.cache/huggingface
+
+  # HTTP SynthID scorer sidecar: lets wr-core score images before/after
+  # cleaning without bundling the non-commercial reverse-SynthID code in the
+  # published core image. Reach it via WATERMARKS_SYNTHID_SCORER_URL on
+  # wr-core (see .env.example) and require the same bearer key on both sides.
+  wr-synthid-score:
+    profiles: [heavy]
+    build:
+      context: service
+      dockerfile: Dockerfile.synthid
+    image: ai-watermark-remover-synthid-scorer:local
+    entrypoint: ["python3"]
+    command: ["/app/synthid_score_server.py", "--host", "0.0.0.0", "--port", "8766"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    user: "10001:10001"
+    environment:
+      WATERMARKS_SYNTHID_SCORER_API_KEY: ${WATERMARKS_SYNTHID_SCORER_API_KEY:-}
+      REVERSE_SYNTHID_DIR: /opt/reverse-synthid
+    volumes:
+      - synthid-cache:/home/scorer/.cache/huggingface
+
+volumes:
+  markllm-cache:
+  bench-out:
+  markdiffusion-cache:
+  ctrlregen-cache:
+  synthid-cache:

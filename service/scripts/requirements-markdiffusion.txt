@@ -1,0 +1,8 @@
+# Dependencies for the optional MarkDiffusion image-watermark harness
+# (THU-BPM/MarkDiffusion, Apache-2.0). The package is installed from PyPI at a
+# pinned version; the harness imports it at runtime and it is never bundled.
+#
+# torch is installed separately in setup_markdiffusion.sh with the correct
+# platform index (CUDA or CPU) and satisfies markdiffusion's own
+# torch>=2.4,<2.11 range, so it is intentionally not listed here.
+markdiffusion==1.0.2

@@ -1,0 +1,17 @@
+# Minimal dependencies for the optional reverse-SynthID pixel scorer.
+# The upstream repo's full requirements.txt adds torch/diffusers and other
+# packages only needed for its VAE/bypass pipeline, which this project does not use.
+#
+# Vendored fork hardening: exact pins (no drift). Re-evaluate versions before
+# bumping and pin the upstream checkout in setup_synthid.sh / Dockerfile.synthid
+# to a matching commit.
+#
+# Pillow was bumped 10.4.0 -> 12.3.0 for PYSEC-2026-165/2249-2257/2874/3451-3456
+# (24 known CVEs, e.g. CVE-2026-* image parsing). The pinned upstream commit
+# (b1108367) only uses stable Pillow APIs (Image.fromarray/open/convert).
+numpy==2.5.2
+scipy==1.18.0
+opencv-python==5.0.0.93
+PyWavelets==1.9.0
+scikit-learn==1.9.0
+Pillow==12.3.0

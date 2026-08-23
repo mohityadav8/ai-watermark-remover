@@ -1,0 +1,38 @@
+# CodeRabbit config — rules from CONTRIBUTING.md, ruff.toml, CI.
+language: en-US
+early_access: false
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*.py"
+      instructions: |
+        - Follow ruff.toml: line-length 100, target py312, rules E/F/W/I/UP/B/SIM/RUF/PLW/S.
+        - Stdlib-first; no new runtime deps for skill scripts (CONTRIBUTING).
+        - Tests live under tests/ (pytest, test_*.py); asserts are fine (S101 ignored).
+        - Tests intentionally embed confusable Unicode — don't flag RUF001/RUF003 there.
+        - No drive-by refactors unrelated to the fix.
+    - path: "skills/**"
+      instructions: |
+        - SKILL.md is the contract: changes must stay consistent with it and references/removal-matrix.md.
+        - Respect references/ethics.md: tool is only for content the user owns.
+    - path: "service/**"
+      instructions: |
+        - Preserve document body / pixels / waveform; strip provenance metadata only.
+        - Never use shell=True; guard subprocess args with safe_arg().
+    - path: ".github/**"
+      instructions: |
+        - CI gates: pytest -q, ruff check + format on service and tests, OpenAPI spec validation, pip-audit.
+        - Pin actions to commit SHA with a comment version, matching existing style.
+        - CODEOWNERS: only the maintainer approves/merges; CodeRabbit feedback is advisory.
+
+chat:
+  auto_reply: true

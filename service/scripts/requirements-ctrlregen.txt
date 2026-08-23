@@ -1,0 +1,32 @@
+# Dependencies for the optional CtrlRegen pixel-removal backend
+# (mertizci/noai-watermark). The backend is cloned at a pinned commit by
+# setup_ctrlregen.sh and imported at runtime; it is never bundled.
+#
+# torch is installed separately in setup_ctrlregen.sh with the correct
+# platform index (CUDA or CPU), so it is intentionally not listed here.
+#
+# ML libs are pinned to versions the upstream CtrlRegen research code
+# (yepengliu/CtrlRegen) was built against. Validate against the pinned
+# noai-watermark commit before bumping.
+#
+# Security expectation: several of these research pins (transformers 4.37.2,
+# diffusers 0.27.2, Pillow 12.3.0) carry published advisories. They are
+# deliberately NOT updated to current versions because the upstream code
+# does not run on them. This file is therefore only ever installed inside
+# the dedicated venv created by setup_ctrlregen.sh (service profile
+# "ctrlregen"), never into the main service image, and the backend is not
+# exposed to untrusted input on the network path. Keep it that way: do not
+# merge these pins into the core requirements or the Docker images, and
+# run a scoped pip-audit against this file if you need a report.
+diffusers==0.27.2
+transformers==4.37.2
+accelerate==1.14.0
+controlnet-aux==0.0.10
+color-matcher==0.6.0
+safetensors==0.8.0
+# huggingface_hub must stay <=0.25.0: 0.26.0+ removed the cached_download
+# symbol that diffusers 0.27.2 still imports. Unpinned, pip resolves latest
+# (0.36.2) and the backend fails to import.
+huggingface_hub==0.24.0
+Pillow==12.3.0
+piexif==1.1.3

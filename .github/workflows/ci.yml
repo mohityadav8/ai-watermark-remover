@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install test deps
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Test
+        run: python -m pytest -q
+
+      - name: Validate OpenAPI spec
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          python -c "import sys; sys.path.insert(0, 'service/scripts'); import server; from openapi_spec_validator import validate; validate(server.openapi_spec())"
+
+      - name: Smoke (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          python service/scripts/clean_text.py tests/fixtures/sample_watermarked.txt -o "$env:TEMP/wm.cleaned.txt" --stats &&
+          python service/scripts/rewrite_text.py tests/fixtures/sample_watermarked.txt --backend print-prompt > $null &&
+          python service/scripts/clean_file.py tests/fixtures/sample_ai.md -o "$env:TEMP/sample_ai.cleaned.md" &&
+          python service/scripts/clean_file.py tests/fixtures/sample_ai.html -o "$env:TEMP/sample_ai.cleaned.html" &&
+          python service/scripts/clean_file.py tests/fixtures/sample_meta.svg -o "$env:TEMP/sample_meta.cleaned.svg"
+
+      - name: Validate setup .ps1 scripts
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $files = @('service/scripts/setup_ctrlregen.ps1', 'service/scripts/setup_synthid.ps1')
+          foreach ($f in $files) {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          }
+          $ps1 = Get-Content service/scripts/setup_ctrlregen.ps1 -Raw
+          if ($ps1 -notmatch 'cuda\.is_available\(\)') { Write-Error 'post-install CUDA verification missing'; exit 1 }
+
+      - name: Audit dependencies (pip-audit)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          python -m pip_audit -r requirements-dev.txt \
+            -r service/scripts/requirements-synthid-scorer.txt
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install test deps
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: python -m ruff check service tests
+
+      - name: Format check
+        run: python -m ruff format --check service tests

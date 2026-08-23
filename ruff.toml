@@ -1,0 +1,31 @@
+# Ruff configuration — lint + format.
+# Version pinned in requirements-dev.txt (exact pins, no drift).
+line-length = 100
+target-version = "py312"
+
+[lint]
+# E/F/W: pycodestyle + pyflakes core; I: import sorting; UP: pyupgrade;
+# B: bugbear; SIM: simplify; RUF: ruff-specific; PLW: pylint warnings;
+# S: bandit security checks.
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "PLW", "S"]
+ignore = [
+  "S101",  # asserts are idiomatic in this test suite
+  # E501 would flag long content strings (XML fixtures, help text) that the
+  # formatter already keeps readable; ruff format enforces line length for code.
+  "E501",
+  # S603 fires on any subprocess call whose args aren't all literals, but this
+  # codebase already guards args with safe_arg() and never uses shell=True.
+  "S603",
+]
+
+[lint.per-file-ignores]
+# Tests import scripts via sys.path manipulation; the delayed imports are
+# intentional, so don't demand E402 there (ruff already tolerates them, but
+# be explicit).
+"tests/**" = [
+  "E402",
+  # RUF001/RUF003: tests intentionally embed confusables / ambiguous Unicode
+  # (NBSP, fullwidth, Cyrillic lookalikes) to exercise the scrubbing logic.
+  "RUF001",
+  "RUF003",
+]

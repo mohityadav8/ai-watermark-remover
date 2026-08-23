@@ -1,0 +1,9 @@
+# Deny by default: only the scripts/ tree is ever COPY'd into an image
+# (see service/Dockerfile*), so send nothing else in the build context.
+*
+!scripts/
+!scripts/**
+
+# Never ship build/runtime junk even though it sits under scripts/
+**/__pycache__/
+*.pyc

@@ -1,0 +1,66 @@
+# Optional local Docker image for the CtrlRegen pixel-watermark remover.
+#
+# Build from the repository root (build context = service/):
+#   docker build -f service/Dockerfile.ctrlregen -t ai-watermark-remover-ctrlregen service/
+#
+# The upstream code is fetched from source at build time and is NOT
+# redistributed by this repository. mertizci/noai-watermark ships no LICENSE
+# file, so it is treated as all-rights-reserved; review its terms before use.
+#
+# Vendored fork hardening:
+#   - base image pinned by digest (no moving tag drift)
+#   - upstream checkout pinned to a commit SHA (no moving branch)
+#   - deps pinned exactly in requirements-ctrlregen.txt
+#   - pip itself pinned (no unpinned bootstrap step)
+#   - runs as an unprivileged user (a crafted image can no longer write
+#     files as root inside the container)
+
+# Pinned upstream commit (2026-08-13). Keep in sync with setup_ctrlregen.sh.
+ARG NOAI_WATERMARK_REF=b642ae45d20eded52c96d570985eb4e3e427aac8
+
+# python:3.11-slim (multi-arch manifest digest). The pinned ML deps below are
+# research-era pins (diffusers 0.27.2 / transformers 4.37.2 -> tokenizers<0.19)
+# that ship no Python 3.14 wheels; 3.11 is the newest base with prebuilt wheels
+# for all of them.
+FROM python:3.11-slim@sha256:a630a63cdb314e2d138a2fca3e375e319e8568346ffafac5b980f888630ac4f1
+
+ARG NOAI_WATERMARK_REF
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        libgl1 \
+        libglib2.0-0 \
+        passwd \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --filter=blob:none --sparse \
+        https://github.com/mertizci/noai-watermark.git /opt/noai-watermark \
+    && cd /opt/noai-watermark \
+    && git fetch --depth 1 origin "${NOAI_WATERMARK_REF}" \
+    && git checkout --detach "${NOAI_WATERMARK_REF}" \
+    && git sparse-checkout set --no-cone '/src/'
+
+COPY scripts/requirements-ctrlregen.txt /app/requirements-ctrlregen.txt
+COPY scripts/clean_ctrlregen.py /app/clean_ctrlregen.py
+COPY scripts/common.py /app/common.py
+
+# torch is installed first (CPU wheels on linux) so the pinned ML deps can
+# resolve against it. Model weights are downloaded at runtime, not build time.
+RUN python3 -m pip install --no-cache-dir "pip==26.2.1" \
+    && python3 -m pip install --no-cache-dir torch \
+    && python3 -m pip install --no-cache-dir -r /app/requirements-ctrlregen.txt
+
+# Unprivileged runtime user. The remover reads input files from a mounted
+# volume and writes the output next to them, so nothing under /opt or /app
+# needs root.
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin remover
+USER remover
+
+ENV NOAI_WATERMARK_DIR=/opt/noai-watermark \
+    HOME=/home/remover \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+ENTRYPOINT ["python3", "/app/clean_ctrlregen.py"]

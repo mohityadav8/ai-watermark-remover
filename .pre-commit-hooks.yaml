@@ -1,0 +1,16 @@
+- id: ai-watermark-remover-check
+  name: ai-watermark-remover check
+  description: Fail the commit if staged files carry AI/C2PA provenance marks.
+  entry: python3 service/scripts/check_staged.py
+  language: system
+  stages: [pre-commit]
+
+- id: ai-watermark-remover-clean
+  name: ai-watermark-remover clean (auto-fix)
+  description: >-
+    Strip AI/C2PA provenance marks from staged files in place. Opt-in: this
+    rewrites file contents, so add it only if you want staged files cleaned
+    automatically rather than just failing the commit.
+  entry: python3 service/scripts/clean_staged.py
+  language: system
+  stages: [pre-commit]

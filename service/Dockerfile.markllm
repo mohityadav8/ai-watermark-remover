@@ -1,0 +1,80 @@
+# Optional local Docker image for the MarkLLM text-watermark harness.
+#
+# Build from the repository root (build context = service/):
+#   docker build -f service/Dockerfile.markllm -t ai-watermark-remover-markllm service/
+#
+# The upstream code is fetched from source at build time and is NOT
+# redistributed by this repository. Upstream is Apache-2.0.
+#
+# Vendored fork hardening:
+#   - base image pinned by digest (no moving tag drift)
+#   - upstream checkout pinned to a commit SHA (no moving branch)
+#   - deps pinned exactly in requirements-markllm.txt
+#   - pip itself pinned (no unpinned bootstrap step)
+#   - runs as an unprivileged user (a parser bug in a crafted file can no
+#     longer write files as root inside the container)
+
+# Pinned upstream commit (2026-07-10). Keep in sync with setup_markllm.sh.
+ARG MARKLLM_REF=c45ddc40f7b761beabe55a1b8dc4690e531d1c6d
+
+# Default: python:3.14-slim linux/amd64 digest (published image). GPU/arm64
+# builds override with --build-arg BASE_IMAGE=<digest for the target arch>.
+ARG BASE_IMAGE=python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4
+FROM ${BASE_IMAGE}
+
+ARG MARKLLM_REF
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        libgl1 \
+        libglib2.0-0 \
+        passwd \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --filter=blob:none --sparse \
+        https://github.com/THU-BPM/MarkLLM.git /opt/markllm \
+    && cd /opt/markllm \
+    && git fetch --depth 1 origin "${MARKLLM_REF}" \
+    && git checkout --detach "${MARKLLM_REF}" \
+    && git sparse-checkout set --no-cone \
+        '/watermark/' \
+        '/config/' \
+        '/utils/' \
+        '/exceptions/' \
+        '/visualize/' \
+        '/evaluation/dataset.py' \
+        '/LICENSE' \
+        '/README.md' \
+    && test "$(git -C /opt/markllm rev-parse HEAD)" = "${MARKLLM_REF}"
+
+COPY scripts/requirements-markllm.txt /app/requirements-markllm.txt
+COPY scripts/detect_text_watermark.py /app/detect_text_watermark.py
+COPY scripts/common.py /app/common.py
+# Benchmark + Layer B rewrite machinery (all stdlib; no extra deps).
+COPY scripts/bench_synthid_text.py /app/bench_synthid_text.py
+COPY scripts/rewrite_text.py /app/rewrite_text.py
+COPY scripts/text_detectors.py /app/text_detectors.py
+COPY scripts/text_unicode.py /app/text_unicode.py
+
+# Default: CPU torch (like Dockerfile.markdiffusion). CUDA users build with
+# --build-arg TORCH_INDEX_URL=https://download.pytorch.org/whl/cuXXX and run
+# with --gpus all.
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+RUN python3 -m pip install --no-cache-dir "pip==26.2.1" \
+    && python3 -m pip install --no-cache-dir --index-url "${TORCH_INDEX_URL}" "torch>=2.13,<2.14" \
+    && python3 -m pip install --no-cache-dir -r /app/requirements-markllm.txt
+
+# Unprivileged runtime user. The harness only reads input files and writes to
+# stdout, so nothing under /opt, /app, or the mounted data dir needs root.
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin markllm
+USER markllm
+
+ENV MARKLLM_DIR=/opt/markllm \
+    HOME=/home/markllm \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HF_HOME=/home/markllm/.cache/huggingface
+
+WORKDIR /app
+ENTRYPOINT ["python3", "/app/detect_text_watermark.py"]

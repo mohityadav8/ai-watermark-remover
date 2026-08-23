@@ -1,0 +1,4 @@
+# All images build with `service/` as the build context (see compose.yaml and
+# service/Dockerfile*). Nothing in the repo root is COPY'd into an image, so
+# deny everything. Use service/.dockerignore for per-image context filtering.
+*

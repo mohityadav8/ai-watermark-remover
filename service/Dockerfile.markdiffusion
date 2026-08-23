@@ -1,0 +1,49 @@
+# Optional local Docker image for the MarkDiffusion image-watermark harness.
+#
+# Build from the repository root (build context = service/):
+#   docker build -f service/Dockerfile.markdiffusion -t ai-watermark-remover-markdiffusion service/
+#
+# The upstream package is installed from PyPI at build time (pinned in
+# requirements-markdiffusion.txt) and is NOT redistributed by this repository.
+# Upstream is Apache-2.0.
+#
+# Vendored fork hardening:
+#   - base image pinned by digest (no moving tag drift)
+#   - package version pinned exactly in requirements-markdiffusion.txt
+#   - pip itself pinned (no unpinned bootstrap step)
+#   - runs as an unprivileged user (a parser bug in a crafted image can no
+#     longer write files as root inside the container)
+
+# python:3.14-slim linux/amd64 digest.
+FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libgl1 \
+        libglib2.0-0 \
+        passwd \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY scripts/requirements-markdiffusion.txt /app/requirements-markdiffusion.txt
+COPY scripts/markdiffusion_harness.py /app/markdiffusion_harness.py
+COPY scripts/common.py /app/common.py
+
+# torch is pinned (with everything else) in requirements-markdiffusion.txt; the
+# CPU index keeps the image small. No GPU wheel index inside the image — CUDA
+# users should run setup_markdiffusion.sh on the host instead.
+RUN python3 -m pip install --no-cache-dir "pip==26.2.1" \
+    && python3 -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch>=2.4,<2.11" \
+    && python3 -m pip install --no-cache-dir -r /app/requirements-markdiffusion.txt
+
+# Unprivileged runtime user. The harness only reads input files and writes to
+# stdout/tmp, so nothing under /opt, /app, or the mounted data dir needs root.
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin markdiffusion
+USER markdiffusion
+
+ENV HOME=/home/markdiffusion \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HF_HOME=/home/markdiffusion/.cache/huggingface
+
+WORKDIR /app
+ENTRYPOINT ["python3", "/app/markdiffusion_harness.py"]

@@ -1,0 +1,35 @@
+# Minimal dependencies for the optional MarkLLM text-watermark harness.
+# The upstream repo's requirements.txt is unpinned and pulls evaluation-only
+# deps (sentence-transformers, sacrebleu, networkx, translate, tiktoken,
+# openai==0.28). This file installs only what AutoWatermark.load() needs for
+# the KGW and SynthID schemes (plus the synthid detector's C4Dataset import).
+#
+# Vendored fork hardening: exact pins (no drift). Re-evaluate versions before
+# bumping and keep the pinned upstream checkout in setup_markllm.sh /
+# Dockerfile.markllm in sync with the code these versions are tested against.
+#
+# Pillow is pinned to 12.3.0 (same as requirements-synthid-scorer.txt) for
+# the 24 known CVEs fixed after the upstream 9.4.0 pin.
+# torch is pinned with a wildcard so a platform wheel (e.g. 2.13.0+cpu from
+# the CPU index, or 2.13.0+cuXXX from a GPU index) satisfies it. Installers
+# pick the right index first (Dockerfile.markllm: CPU; setup_markllm.sh:
+# GPU when nvidia-smi is present), then this file's remaining pins resolve
+# against the already-installed torch.
+torch==2.13.0.*
+transformers==5.15.0
+# transformers 5.15.0 caps tokenizers at <=0.23.0; there is no 0.23.0
+# release (0.22.2 -> 0.23.1), so the highest compatible pin is 0.22.2.
+tokenizers==0.22.2
+datasets==5.0.1
+accelerate==1.14.0
+SentencePiece==0.2.2
+nltk==3.10.3
+jieba==0.42.1
+tqdm==4.70.0
+matplotlib==3.11.1
+Cython==3.2.9
+numpy==2.5.2
+scipy==1.18.0
+scikit-learn==1.9.0
+huggingface_hub==1.27.0
+Pillow==12.3.0
