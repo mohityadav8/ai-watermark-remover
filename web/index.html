@@ -3,122 +3,145 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ai-watermark-remover — strip AI provenance marks</title>
-  <meta name="description" content="Strip multi-vendor AI provenance marks: invisible Unicode, C2PA / EXIF / XMP metadata, and doc properties from files you own." />
+  <title>ai-watermark-remover — reveal &amp; strip hidden AI marks</title>
+  <meta name="description" content="Reveal and remove hidden AI provenance marks — invisible Unicode, C2PA / EXIF / XMP metadata, doc properties — from content you own." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- top bar -->
+  <!-- =========================================================
+       EDIT YOUR LINKS HERE (used by the two header buttons + footer)
+       ========================================================= -->
+  <!-- repo:    https://github.com/mohityadav8/ai-watermark-remover
+       sponsor: https://github.com/sponsors/mohityadav8  -->
+
   <div class="topbar">
     <div class="brand">
-      <span class="glyph">⌾</span>
-      ai-watermark-remover <small id="ver">&nbsp;</small>
+      <span class="mark" aria-hidden="true"></span>
+      <span class="name">ai-watermark-remover</span>
     </div>
     <div class="spacer"></div>
-    <div class="status" id="status">
+    <span class="status" id="status">
       <span class="dot wait" id="statusDot"></span>
       <span id="statusText">connecting…</span>
-    </div>
-    <button class="icon-btn" id="openSettings">settings</button>
+    </span>
+    <a class="hbtn" id="repoLink" href="https://github.com/mohityadav8/ai-watermark-remover" target="_blank" rel="noopener">
+      <span class="star">★</span><span class="lbl">Star</span>
+    </a>
+    <a class="hbtn sponsor" id="sponsorLink" href="https://github.com/sponsors/mohityadav8" target="_blank" rel="noopener">
+      ♥ <span class="lbl">Sponsor</span>
+    </a>
+    <button class="iconbtn" id="openSettings" title="Settings">⚙</button>
   </div>
 
   <div class="wrap">
     <!-- hero -->
-    <section class="hero">
-      <div class="eyebrow">provenance hygiene</div>
-      <h1>Strip AI marks.<br /><span class="stroke">Keep your files intact.</span></h1>
+    <section>
+      <div class="eyebrow"><span class="tick"></span> privacy · provenance hygiene</div>
+      <h1>Reveal &amp; strip<br /><span class="redact"><span class="txt">hidden AI marks</span><span class="bar" aria-hidden="true"></span></span></h1>
       <p class="lede">
-        Remove multi-vendor AI provenance marks from content <b>you own</b> —
-        invisible Unicode carriers, C2PA / EXIF / XMP metadata, and document
-        properties. Deterministic, local, and reversible-free: the file body is
-        preserved, only the marks come out.
+        See the invisible characters and metadata that AI tools leave behind — then
+        remove them, without touching the words you wrote. For content <b>you own</b>.
       </p>
-      <div class="pills" id="pills"></div>
     </section>
 
-    <!-- mode -->
-    <div class="modebar">
-      <div class="seg" role="tablist">
-        <button id="modeInspect" class="active">Inspect</button>
-        <button id="modeClean">Clean</button>
+    <!-- tabs -->
+    <div class="tabs" role="tablist">
+      <button class="tab active" id="tabText" role="tab">◍ Paste text</button>
+      <button class="tab" id="tabFiles" role="tab">⬍ Upload files</button>
+    </div>
+
+    <!-- PANEL: text -->
+    <div class="panel" id="panelText">
+      <div class="rowlabel">
+        <span class="l">Paste your text</span>
+        <button class="link" id="loadExample">load an example</button>
       </div>
-      <span class="hint" id="modeHint">Inspect: report marks without changing anything.</span>
-    </div>
+      <textarea class="paste" id="textInput" placeholder="Paste text here — hidden characters get revealed live below…"></textarea>
 
-    <!-- dropzone -->
-    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload files">
-      <div class="arrow">⬍</div>
-      <div class="big">Drop files here</div>
-      <div class="small">or click to browse — text · images · PDF · DOCX · XLSX · PPTX · SVG · HTML · MD · EPUB · audio · video</div>
-      <input type="file" id="fileInput" multiple />
-    </div>
+      <div class="livestat" id="liveStat">
+        <span class="verdict clean" id="verdict"><span class="n">0</span> hidden characters</span>
+        <span class="chips" id="chips"></span>
+      </div>
 
-    <!-- clean options (hidden in inspect mode) -->
-    <details class="options" id="cleanOptions" style="display:none">
-      <summary>Cleaning options</summary>
-      <div class="body">
-        <div class="optrow">
-          <input type="checkbox" id="opt_also_layer_a" checked />
-          <div><label for="opt_also_layer_a">Also scrub body text (Layer&nbsp;A)</label>
-            <div class="desc">Strip invisible Unicode inside container documents (HTML, DOCX, EPUB…).</div></div>
-        </div>
-        <div class="optrow">
-          <input type="checkbox" id="opt_nfkc" />
-          <div><label for="opt_nfkc">NFKC normalize (text)</label>
-            <div class="desc">Fold compatibility characters. Slightly more aggressive on text files.</div></div>
-        </div>
-        <div class="optrow">
-          <input type="checkbox" id="opt_aggr" />
-          <div><label for="opt_aggr">Aggressive homoglyphs (text)</label>
-            <div class="desc">Map look-alike letters back to ASCII. May touch intentional styling.</div></div>
-        </div>
-        <div class="optrow">
-          <input type="checkbox" id="opt_keepmeta" />
-          <div><label for="opt_keepmeta">Keep non-AI metadata (images/AV)</label>
-            <div class="desc">Only remove AI/C2PA marks, leave ordinary EXIF (camera, date) in place.</div></div>
-        </div>
-        <div class="optrow">
-          <input type="checkbox" id="opt_detect" />
-          <div><label for="opt_detect">Score before &amp; after</label>
-            <div class="desc">Run configured detectors (stylometry, SynthID score if available) on input and output.</div></div>
-        </div>
-        <div class="optrow">
-          <label for="opt_deep" style="min-width:150px">PDF deep-image pass</label>
-          <select id="opt_deep">
-            <option value="auto" selected>auto</option>
-            <option value="always">always</option>
-            <option value="lossless">lossless</option>
-            <option value="never">never</option>
-          </select>
-          <div class="desc">Clean metadata inside images embedded in PDFs (needs Ghostscript).</div>
+      <div class="rowlabel"><span class="l">Revealed</span></div>
+      <div class="revealbox" id="revealBox"><span class="empty">Your text will appear here with any hidden characters marked.</span></div>
+
+      <div class="actions">
+        <button class="btn" id="cleanTextBtn" disabled>Clean text</button>
+        <button class="btn ghost" id="clearTextBtn">Clear</button>
+        <span class="hintline" id="textHint"></span>
+      </div>
+
+      <div class="outwrap" id="textOutWrap" style="display:none">
+        <div class="cap">✓ Cleaned — <span id="textRemoved"></span></div>
+        <div class="outbox" id="textOutput"></div>
+        <div class="stamp" id="stampText">Clean</div>
+        <div class="actions">
+          <button class="btn" id="copyTextBtn">Copy cleaned text</button>
         </div>
       </div>
-    </details>
-
-    <div class="actions">
-      <button class="btn" id="runBtn" disabled>Run</button>
-      <button class="btn ghost" id="clearBtn" style="display:none">Clear</button>
-      <span class="filecount" id="fileCount"></span>
     </div>
 
-    <div class="scanbar" id="scanbar" style="display:none"><i></i></div>
+    <!-- PANEL: files -->
+    <div class="panel" id="panelFiles" style="display:none">
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload files">
+        <div class="icon" aria-hidden="true"></div>
+        <div class="big">Drop files here</div>
+        <div class="small">or click to browse — TXT · MD · HTML · PNG · JPEG · PDF · DOCX · XLSX · PPTX · SVG · EPUB · MP4 · MP3</div>
+        <input type="file" id="fileInput" multiple />
+      </div>
+      <div class="filechips" id="fileChips"></div>
 
-    <!-- summary strip -->
-    <div class="summary" id="summary" style="display:none"></div>
+      <div class="actions">
+        <button class="btn ghost" id="inspectBtn" disabled>Inspect</button>
+        <button class="btn" id="cleanBtn" disabled>Clean</button>
+        <button class="btn ghost" id="clearFilesBtn" style="display:none">Clear</button>
+        <span class="hintline" id="fileHint"></span>
+      </div>
 
-    <!-- results -->
-    <div class="ledger" id="ledger"></div>
+      <div class="scanbar" id="scanbar" style="display:none"><i></i></div>
+      <div class="summary" id="summary" style="display:none"></div>
+      <div class="ledger" id="ledger"></div>
+    </div>
+
+    <!-- features -->
+    <section class="features">
+      <div class="feature">
+        <div class="num">01</div>
+        <h3>Reveal the <span class="accent">invisible</span></h3>
+        <p>Zero-width spaces, bidi controls, tag characters — the marks you can't see, shown and counted the moment you paste.</p>
+      </div>
+      <div class="feature">
+        <div class="num">02</div>
+        <h3>Strip the <span class="accent">metadata</span></h3>
+        <p>C2PA manifests, EXIF/XMP, and document properties removed across 18+ file formats — the body of the file left intact.</p>
+      </div>
+      <div class="feature">
+        <div class="num">03</div>
+        <h3>Stays on <span class="accent">your machine</span></h3>
+        <p>Run it locally and nothing is uploaded anywhere — the engine processes files right on your own computer.</p>
+      </div>
+    </section>
   </div>
 
-  <!-- settings / capabilities popover -->
+  <footer class="foot">
+    <div class="footin">
+      <span class="who">ai-watermark-remover · MIT · by <a href="https://github.com/mohityadav8" target="_blank" rel="noopener">mohityadav8</a></span>
+      <span class="spacer"></span>
+      <a class="flink" href="https://github.com/mohityadav8/ai-watermark-remover" target="_blank" rel="noopener">GitHub</a>
+      <a class="flink" href="https://github.com/mohityadav8/ai-watermark-remover/issues" target="_blank" rel="noopener">Report an issue</a>
+      <a class="flink" href="https://github.com/sponsors/mohityadav8" target="_blank" rel="noopener">♥ Support this project</a>
+    </div>
+  </footer>
+
+  <!-- settings modal -->
   <div class="pop" id="settingsPop">
-    <div class="card">
+    <div class="modal">
       <h3>Settings</h3>
       <p class="sub">Connection and server capabilities.</p>
-
       <div class="field">
         <label for="apiBase">Service URL</label>
         <input id="apiBase" placeholder="/api" />
@@ -127,24 +150,14 @@
         <label for="apiKey">API key (only if the server sets WATERMARKS_SERVER_API_KEY)</label>
         <input id="apiKey" type="password" placeholder="leave empty for no auth" />
       </div>
-
-      <label style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">Server capabilities</label>
+      <label style="font-family:var(--mono);font-size:12px;color:var(--ink-2)">Server capabilities</label>
       <div class="caps" id="capsList"><div class="cap"><span class="d off"></span><span class="name">not loaded</span></div></div>
-
-      <div class="actions" style="margin-top:4px">
+      <div class="actions">
         <button class="btn" id="saveSettings">Save &amp; reconnect</button>
         <button class="btn ghost" id="closeSettings">Close</button>
       </div>
     </div>
   </div>
-
-  <footer class="foot">
-    <div class="row">
-      <span>ai-watermark-remover · MIT</span>
-      <a href="https://github.com/mohityadav8/ai-watermark-remover" target="_blank" rel="noopener">source</a>
-      <span>For content you own or are authorized to process.</span>
-    </div>
-  </footer>
 
   <script src="app.js"></script>
 </body>
