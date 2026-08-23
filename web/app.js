@@ -5,12 +5,8 @@
 
 "use strict";
 
-const LS_BASE = "wm.apiBase";
-const LS_KEY = "wm.apiKey";
 
 const state = {
-  apiBase: localStorage.getItem(LS_BASE) || "/api",
-  apiKey: localStorage.getItem(LS_KEY) || "",
   files: [],
   running: false,
   tab: "text",
@@ -19,10 +15,8 @@ const state = {
 const $ = (id) => document.getElementById(id);
 
 /* ============================ HTTP ============================ */
-const apiUrl = (p) => `${state.apiBase.replace(/\/+$/, "")}${p}`;
 function authHeaders(extra = {}) {
   const h = { ...extra };
-  if (state.apiKey) h["Authorization"] = `Bearer ${state.apiKey}`;
   return h;
 }
 async function api(path, opts = {}) {
@@ -44,30 +38,9 @@ async function checkHealth() {
   try {
     const h = await api("/health");
     setStatus("up", `online · v${h.version || "?"}`);
-    loadCaps();
   } catch { setStatus("down", "offline — is the engine running?"); }
 }
 function setStatus(cls, text) { $("statusDot").className = `dot ${cls}`; $("statusText").textContent = text; }
-async function loadCaps() {
-  try { renderCaps(await api("/capabilities")); } catch { }
-}
-function renderCaps(c) {
-  const el = $("capsList"); el.innerHTML = "";
-  const t = c.tools || {}, px = c.pixel_backends || {}, sc = c.scorers || {};
-  const rows = [
-    ["exiftool", t.exiftool, "metadata strip"],
-    ["qpdf", t.qpdf, "PDF rewrite"],
-    ["ghostscript", t.ghostscript, "PDF deep images"],
-    ["c2patool", t.c2patool, "C2PA inspect"],
-    ["ctrlregen", px.ctrlregen, "pixel removal"],
-    ["stylometry", sc.stylometry, "AI-likelihood"],
-  ];
-  rows.forEach(([n, on, v]) => {
-    const d = document.createElement("div"); d.className = "cap";
-    d.innerHTML = `<span class="d ${on ? "on" : "off"}"></span><span class="name">${n}</span><span class="val ${on ? "on" : ""}">${on ? v : "n/a"}</span>`;
-    el.appendChild(d);
-  });
-}
 
 /* ==================== invisible-char detection ==================== */
 // Map a codepoint to a short label, or null if it's ordinary text.
@@ -391,17 +364,6 @@ function wire() {
   $("cleanBtn").onclick = () => runFiles("clean");
   $("clearFilesBtn").onclick = clearFiles;
 
-  // settings
-  $("apiBase").value = state.apiBase; $("apiKey").value = state.apiKey;
-  $("openSettings").onclick = () => $("settingsPop").classList.add("show");
-  $("closeSettings").onclick = () => $("settingsPop").classList.remove("show");
-  $("settingsPop").addEventListener("click", (e) => { if (e.target === $("settingsPop")) $("settingsPop").classList.remove("show"); });
-  $("saveSettings").onclick = () => {
-    state.apiBase = $("apiBase").value.trim() || "/api";
-    state.apiKey = $("apiKey").value.trim();
-    localStorage.setItem(LS_BASE, state.apiBase); localStorage.setItem(LS_KEY, state.apiKey);
-    $("settingsPop").classList.remove("show"); checkHealth();
-  };
 
   updateReveal();
   checkHealth();

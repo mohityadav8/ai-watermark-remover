@@ -33,7 +33,6 @@
     <a class="hbtn sponsor" id="sponsorLink" href="https://github.com/sponsors/mohityadav8" target="_blank" rel="noopener">
       ♥ <span class="lbl">Sponsor</span>
     </a>
-    <button class="iconbtn" id="openSettings" title="Settings">⚙</button>
   </div>
 
   <div class="wrap">
@@ -136,28 +135,6 @@
       <a class="flink" href="https://github.com/sponsors/mohityadav8" target="_blank" rel="noopener">♥ Support this project</a>
     </div>
   </footer>
-
-  <!-- settings modal -->
-  <div class="pop" id="settingsPop">
-    <div class="modal">
-      <h3>Settings</h3>
-      <p class="sub">Connection and server capabilities.</p>
-      <div class="field">
-        <label for="apiBase">Service URL</label>
-        <input id="apiBase" placeholder="/api" />
-      </div>
-      <div class="field">
-        <label for="apiKey">API key (only if the server sets WATERMARKS_SERVER_API_KEY)</label>
-        <input id="apiKey" type="password" placeholder="leave empty for no auth" />
-      </div>
-      <label style="font-family:var(--mono);font-size:12px;color:var(--ink-2)">Server capabilities</label>
-      <div class="caps" id="capsList"><div class="cap"><span class="d off"></span><span class="name">not loaded</span></div></div>
-      <div class="actions">
-        <button class="btn" id="saveSettings">Save &amp; reconnect</button>
-        <button class="btn ghost" id="closeSettings">Close</button>
-      </div>
-    </div>
-  </div>
 
   <script src="app.js"></script>
 </body>
