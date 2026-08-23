@@ -395,8 +395,8 @@ function wire() {
   $("apiBase").value = state.apiBase; $("apiKey").value = state.apiKey;
   $("openSettings").onclick = () => $("settingsPop").classList.add("show");
   $("closeSettings").onclick = () => $("settingsPop").classList.remove("show");
-  $("settingsPop").addEventListener("click", (e) => { if (e.target === $("settingsPop")) $("settingsPop").classList.remove("show"); });
-  $("saveSettings").onclick = () => {
+  
+  
     state.apiBase = $("apiBase").value.trim() || "/api";
     state.apiKey = $("apiKey").value.trim();
     localStorage.setItem(LS_BASE, state.apiBase); localStorage.setItem(LS_KEY, state.apiKey);
