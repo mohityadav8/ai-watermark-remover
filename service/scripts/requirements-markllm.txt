@@ -31,5 +31,5 @@ Cython==3.2.9
 numpy==2.5.2
 scipy==1.18.0
 scikit-learn==1.9.0
-huggingface_hub==1.27.0
+huggingface_hub==1.28.0
 Pillow==12.3.0
