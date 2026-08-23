@@ -5,8 +5,8 @@
 
 "use strict";
 
-
 const state = {
+  apiBase: "/api",
   files: [],
   running: false,
   tab: "text",
@@ -15,6 +15,7 @@ const state = {
 const $ = (id) => document.getElementById(id);
 
 /* ============================ HTTP ============================ */
+const apiUrl = (p) => `${state.apiBase.replace(/\/+$/, "")}${p}`;
 function authHeaders(extra = {}) {
   const h = { ...extra };
   return h;
