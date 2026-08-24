@@ -4,28 +4,57 @@ ____ _    _ _ _ ____ ___ ____ ____ _  _ ____ ____ _  _    ____ ____ _  _ ____ _ 
 |  | |    |_|_| |  |  |  |___ |  \ |  | |  | |  \ | \_    |  \ |___ |  | |__|  \/  |___ |  \
 ```
 
-# ai-watermark-remover
+<div align="center">
 
 <!-- logo: figlet -f cybermedium -w 120 "ai-watermark-remover" -->
+
+# ai-watermark-remover
+
+**Agent skill + stdlib Python service that strips multi-vendor AI provenance marks from text and files** — for privacy and hygiene on content you own. The skill is a thin client: it drives the machinery over HTTP, so the agent host needs no Python.
 
 [![CI](https://github.com/mohityadav8/ai-watermark-remover/actions/workflows/ci.yml/badge.svg)](https://github.com/mohityadav8/ai-watermark-remover/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Agent skill + stdlib Python service to strip **multi-vendor AI provenance marks** from text and files — for privacy and hygiene on content **you own**. The skill is a thin client: it drives the machinery over HTTP, so the agent host needs no Python.
+Skill: [`skills/remove-ai-marks/`](skills/remove-ai-marks/) · Service: [`service/`](service/)
 
-| Layer | Target | How |
-| --- | --- | --- |
-| **A** | Invisible Unicode, exotic spaces, bidi, tag chars | Deterministic Python scripts |
-| **B** | Statistical (token-sampling) text watermarks | Agent rewrite + optional `rewrite_text.py` hook |
-| **Files** | C2PA / EXIF / XMP / doc props | PNG, JPEG, WebP, AVIF, HEIC, BMP, GIF, TIFF, SVG, PDF, DOCX, XLSX, PPTX, EPUB, ODT, HTML, Markdown, MP4/MOV/M4A/M4V, WAV, MP3, FLAC |
+</div>
 
-Vendors / ecosystems (class-level): **Claude**, **Gemini / SynthID-Text**, **OpenAI** provenance surfaces, **open-LLM** Kirchenbauer-style (green-list) and keyed-Gumbel / EXP (Aaronson) marks.
+---
 
+**What it targets, by layer:**
 
-Skill path: [`skills/remove-ai-marks/`](skills/remove-ai-marks/)  
-Service path: [`service/`](service/)  
+- 🅰️ **Layer A** — invisible Unicode, exotic spaces, bidi, tag chars → deterministic Python scripts
+- 🅱️ **Layer B** — statistical (token-sampling) text watermarks → agent rewrite + optional `rewrite_text.py` hook
+- 🗃️ **Files** — C2PA / EXIF / XMP / doc props → PNG, JPEG, WebP, AVIF, HEIC, BMP, GIF, TIFF, SVG, PDF, DOCX, XLSX, PPTX, EPUB, ODT, HTML, Markdown, MP4/MOV/M4A/M4V, WAV, MP3, FLAC
 
-## Install (agent skill)
+**Vendors / ecosystems** *(class-level)*: `Claude` · `Gemini / SynthID-Text` · `OpenAI` provenance surfaces · `open-LLM` Kirchenbauer-style (green-list) and keyed-Gumbel / EXP (Aaronson) marks
+
+---
+
+## 🧭 Contents
+
+- [🧩 Install (agent skill)](#-install-agent-skill)
+- [⚡ Quick use (scripts)](#-quick-use-scripts)
+- [🌐 HTTP service](#-http-service)
+- [Docker / compose](#docker--compose)
+- [🔬 Optional SynthID pixel scoring](#-optional-synthid-pixel-scoring)
+- [🖼️ Optional CtrlRegen pixel removal](#-optional-ctrlregen-pixel-removal)
+- [🧪 Optional MarkLLM text-watermark verification](#-optional-markllm-text-watermark-verification)
+- [📊 Optional SynthID-text removal benchmark](#-optional-synthid-text-removal-benchmark)
+- [🎨 Optional MarkDiffusion image-watermark harness](#-optional-markdiffusion-image-watermark-harness)
+- [Coverage matrix](#coverage-matrix)
+- [📖 How text marking works (short)](#-how-text-marking-works-short)
+- [Disclaimer: what removing a text watermark costs](#disclaimer-what-removing-a-text-watermark-costs)
+- [🗂️ File formats](#-file-formats)
+- [🧹 Removal options (summary)](#-removal-options-summary)
+- [⚖️ Ethics and disclaimer](#-ethics-and-disclaimer)
+- [🌱 Ecosystem](#-ecosystem)
+- [Pre-commit hook](#pre-commit-hook)
+- [✅ Tests](#-tests)
+- [📄 License](#-license)
+- [📚 Bibliography](#-bibliography)
+
+## 🧩 Install (agent skill)
 
 The skill ships **no code** — it calls the service over HTTP. Install the skill (markdown only) and start the service, then set `WATERMARKS_SERVICE_URL` if it is not `http://127.0.0.1:8765`.
 
@@ -258,7 +287,7 @@ Optional system tools (auto-used when present — preinstalled in the core Docke
 
 Core scripts need **Python 3.10+** stdlib only. Layer B model calls are optional.
 
-## Quick use (scripts)
+## ⚡ Quick use (scripts)
 
 ```bash
 SCRIPTS=service/scripts
@@ -315,7 +344,7 @@ as `unknown` (exit 0), and the HTTP service answers `/inspect` with
 `kind: "unknown"` but rejects `/clean` of unknown formats (400 — send a
 filename with a known extension, e.g. `notes.txt`).
 
-## HTTP service
+## 🌐 HTTP service
 
 The same machinery runs as a stdlib HTTP service (`service/scripts/server.py`) — the interface the skill uses and the way any web app can integrate without vendoring:
 
@@ -454,7 +483,7 @@ Layer B is agent-orchestrated in the skill (it rewrites with its own model), so 
 
 Images publish automatically on `v*` tags via [`.github/workflows/release-images.yml`](.github/workflows/release-images.yml).
 
-## Optional SynthID pixel scoring
+## 🔬 Optional SynthID pixel scoring
 
 `inspect_image.py` and `clean_image.py` can report a pixel-domain SynthID
 confidence score when an external checkout of
@@ -462,6 +491,9 @@ confidence score when an external checkout of
 is available. The scorer is **not bundled**: it is loaded at runtime from your
 checkout, and its code remains under the upstream project's non-commercial
 Research License.
+
+<details>
+<summary>Show bootstrap options, scoring commands, and Docker setup</summary>
 
 ### Option 1: one-command bootstrap (no Docker)
 
@@ -529,7 +561,9 @@ V4 scoring uses `artifacts/spectral_codebook_v4.npz` from the upstream checkout
 (`220 MB). This is **detection/scoring only** — it does not remove pixel
 watermarks.
 
-## Optional CtrlRegen pixel removal
+</details>
+
+## 🖼️ Optional CtrlRegen pixel removal
 
 For **pixel-domain** image watermarks (SynthID-class, StegaStamp, Tree-Ring,
 StableSignature), an optional external backend runs the CtrlRegen pipeline
@@ -537,6 +571,9 @@ StableSignature), an optional external backend runs the CtrlRegen pipeline
 [`mertizci/noai-watermark`](https://github.com/mertizci/noai-watermark), a
 maintained reimplementation of the ICLR 2025
 [CtrlRegen](https://arxiv.org/abs/2410.05470) method with automatic tiling.
+
+<details>
+<summary>Show bootstrap, usage, image-size handling, and Docker setup</summary>
 
 The backend is **not bundled** and ships no LICENSE file, so it is treated as
 all-rights-reserved: it is cloned at a pinned commit and loaded at runtime.
@@ -628,7 +665,9 @@ docker run --rm -e HF_TOKEN="$HF_TOKEN" \
   ai-watermark-remover-ctrlregen /data/shot.png -o /data/shot.ctrlregen.png
 ```
 
-## Optional MarkLLM text-watermark verification
+</details>
+
+## 🧪 Optional MarkLLM text-watermark verification
 
 For **controlled experiments**, an optional external harness wraps
 [`THU-BPM/MarkLLM`](https://github.com/THU-BPM/MarkLLM) (Apache-2.0) to
@@ -637,6 +676,9 @@ a KGW (Kirchenbauer, your "open-LLM" row) or SynthID-Text (Gemini row) mark
 disappears under your rewrite. It is a **verification harness, not an oracle**:
 MarkLLM detection is only valid against the *same* scheme config + keys used at
 generation, and it cannot certify a vendor detector will fail.
+
+<details>
+<summary>Show bootstrap, detection-guided rewriting, hardening knobs, and Docker setup</summary>
 
 The backend is **not bundled**. `setup_markllm.sh` clones upstream at a pinned
 commit, creates a venv, and installs pinned deps (torch + transformers); the
@@ -793,7 +835,9 @@ The key never appears in stats or logs. Self-hosted operators who hold their
 engine's key can verify a rewrite cleared a Gumbel mark; everyone else treats
 Layer B as best-effort only.
 
-## Optional SynthID-text removal benchmark
+</details>
+
+## 📊 Optional SynthID-text removal benchmark
 
 [`bench_synthid_text.py`](service/scripts/bench_synthid_text.py) measures how
 effectively a Layer B rewrite clears SynthID-text-class watermarks and at
@@ -804,6 +848,9 @@ controls (no-removal, Layer-A-only, optional re-stamp check), and writes a
 shareable `report.md` /
 `results.json` / `results.csv`. Full guide:
 [`docs/synthid-text-benchmark.md`](docs/synthid-text-benchmark.md).
+
+<details>
+<summary>Show benchmark configuration and usage</summary>
 
 Requires a MarkLLM checkout (`setup_markllm.sh` / `MARKLLM_DIR`) and a
 rewrite backend. **The rewriting model is an LLM you configure** — the same
@@ -837,12 +884,17 @@ Use a **non-origin model** for rewriting (do not rewrite with the same
 watermarked model that generated the text) or the rewrite can re-stamp the
 output; `--restamp-control` measures this.
 
-## Optional MarkDiffusion image-watermark harness
+</details>
+
+## 🎨 Optional MarkDiffusion image-watermark harness
 
 For **controlled experiments on images**, an optional external harness wraps
 [`THU-BPM/MarkDiffusion`](https://github.com/THU-BPM/MarkDiffusion) (Apache-2.0),
 a *generative watermarking* toolkit for latent diffusion models (it embeds marks
 — it does not remove them). We use it for three things:
+
+<details>
+<summary>Show bootstrap, usage, and Docker setup</summary>
 
 1. **Verification harness** (like MarkLLM, but for images): watermark a test
    image with a scheme, run removal, and re-detect with the *same* scheme config
@@ -914,6 +966,8 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/data" \
 The image installs a CPU torch; CUDA users should run `setup_markdiffusion.sh`
 on the host instead. Model downloads still hit the HF hub on first run.
 
+</details>
+
 ## Coverage matrix
 
 | Channel | Claude | Gemini/SynthID | OpenAI | Open-LLM |
@@ -928,7 +982,7 @@ Details: [`skills/remove-ai-marks/references/vendor-notes.md`](skills/remove-ai-
 
 ---
 
-## How text marking works (short)
+## 📖 How text marking works (short)
 
 Modern LLM watermarks often hide a signal in **which tokens are chosen** (generative / sampling bias), not only in invisible characters. Edit-based schemes inject Unicode or synonym rules. File schemes attach **C2PA** or generator metadata.
 
@@ -963,7 +1017,7 @@ Layer B makes sense when you specifically want the premium model's **thinking an
 
 ---
 
-## File formats
+## 🗂️ File formats
 
 | Format | Inspect | Clean |
 | --- | --- | --- |
@@ -1075,7 +1129,7 @@ Industry two-layer context (C2PA + imperceptible watermark): [Institute of AI PM
 
 ---
 
-## Removal options (summary)
+## 🧹 Removal options (summary)
 
 | Option | Removes | Notes |
 | --- | --- | --- |
@@ -1088,13 +1142,13 @@ Industry two-layer context (C2PA + imperceptible watermark): [Institute of AI PM
 
 Matrix: [`skills/remove-ai-marks/references/removal-matrix.md`](skills/remove-ai-marks/references/removal-matrix.md).
 
-## Ethics and disclaimer
+## ⚖️ Ethics and disclaimer
 
 See [`skills/remove-ai-marks/references/ethics.md`](skills/remove-ai-marks/references/ethics.md). For privacy and research on **your** content — not academic fraud or false “human-written” claims.
 
 **Responsible use:** This project is for content you own or are authorized to process. Users must adhere to local regulations and use it responsibly. The developers disclaim any liability for potential misuse by users.
 
-## Ecosystem
+## 🌱 Ecosystem
 
 Third-party projects that wrap or complement this repository, listed for discoverability only. **They are not maintained, endorsed, or supported by this project.** This project does not review their code, vouch for their behavior or guarantees, or take responsibility for anything you install or run from this list. Each project is governed by its own license, maintainers, and documentation — read those before using it.
 
@@ -1126,7 +1180,7 @@ repos:
 
 `ai-watermark-remover-check` fails the commit and lists findings; `ai-watermark-remover-clean` is opt-in and rewrites staged files in place (exits 1 so you review the diff and re-stage — the same convention as auto-fixing hooks like `ruff --fix`). When the cleaner cannot process a file at all — it crashed, was killed, or produced no report — `ai-watermark-remover-clean` names that file and exits 3 instead, so a cleaner that failed is never mistaken for an already-clean file. Run either by hand with `python3 service/scripts/check_staged.py <files...>` / `clean_staged.py <files...>`.
 
-## Tests
+## ✅ Tests
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install pytest
@@ -1134,12 +1188,57 @@ python3 -m venv .venv && .venv/bin/pip install pytest
 make smoke                          # quick CLI smoke on fixtures
 ```
 
+## 🚧 What's coming
 
-## License
+Two open tracks, both tracked as GitHub issues on this repo.
+
+<details>
+<summary><strong>Roadmap: engine features not yet exposed in the web app (#7)</strong></summary>
+
+The Python engine already does more than the web UI surfaces. Working today: Layer A invisible-Unicode detection/stripping, file metadata stripping (C2PA/EXIF/XMP/doc props across 18+ formats), and Inspect/Clean/Batch. Remaining, by priority:
+
+| Priority | Feature | Effort |
+| --- | --- | --- |
+| 🔴 High | Layer B rewrite UI — backend selector, model/API key input, strength slider, before/after diff, `POST /rewrite` | 3 days |
+| 🔴 High | Detect tab + stylometry — AI-likelihood meter, before/after score comparison (`/detect` already exists) | 1 day |
+| 🟡 Medium | Website audit tab — URL/sitemap input, progress bar, per-URL results (`audit_website.py`) | 2 days |
+| 🟡 Medium | Pre-commit hook docs — pin rev to v1.0.0 | 1 hour |
+| 🟡 Medium | Claude Code skill guide — test marketplace install, add guide to README | 1 day |
+| 🟢 Low | CtrlRegen pixel UI — clean-UI toggle, strength slider, GPU setup guide | 2 days |
+| 🟢 Low | SynthID scoring — score display in image results, detect_before/after toggle | 1 day |
+| 🟢 Low | Windows autostart docs — link from README/WEBAPP.md | 2 hours |
+| 🟢 Low | CI image publishing — set `GITHUB_TOKEN` permissions, verify first v1.0.0 publish | 2 hours |
+
+Also queued, lower priority: directory batch audit + SARIF export (ZIP upload, `POST /audit/batch`), a documented `PostToolUse` hook setup guide, MarkLLM before/after verification display, the MarkDiffusion `--remove-pixel diffusion` UI option, and published SynthID-text benchmark results linked from `docs/`.
+
+</details>
+
+<details>
+<summary><strong>Feature request: user-defined watermark embedding & detection (#6)</strong></summary>
+
+The inverse of what this tool does today. Instead of stripping AI watermarks, embed your **own** invisible watermark before sharing a document, so a leak can be traced back to the recipient who leaked it.
+
+- **Problem it solves:** share a confidential document with N people; if it leaks, identify which copy leaked and to whom. Printer steganography (yellow dots) solves this for physical documents — nothing clean does it for digital text yet.
+- **Mechanism:** fingerprint text with invisible Unicode characters encoding a recipient ID (or arbitrary metadata) as binary, using zero-width characters as bits. The text reads and displays identically; copy-paste preserves the signature, screenshots do not (known limitation).
+- **Encoding scheme:**
+
+  | Bit | Character | Unicode | Name |
+  | --- | --- | --- | --- |
+  | 0 | ​ | U+200B | Zero Width Space |
+  | 1 | ‌ | U+200C | Zero Width Non-Joiner |
+  | separator | ⁠ | U+2060 | Word Joiner |
+  | padding | ‍ | U+200D | Zero Width Joiner |
+
+- **Security:** a user-defined secret key gates embedding and detection, so only the document owner can fingerprint or read a fingerprint back out.
+- **Status:** open, labeled `enhancement`, `security`, `steganography`, `feature-request`, `v1.1.0`. A contributor has volunteered to scope v1 as text-only (invisible-Unicode fingerprinting + HMAC-signed recipient IDs), with file-format support (DOCX/PDF) planned as a v2 follow-up issue.
+
+</details>
+
+## 📄 License
 
 MIT — see [LICENSE](LICENSE).
 
-## Bibliography
+## 📚 Bibliography
 
 - [How Claude marks AI-generated content](https://support.claude.com/en/articles/16266773-how-claude-marks-ai-generated-content) (Anthropic)
 - Dathathri et al., [*Scalable watermarking for identifying large language model outputs*](https://www.nature.com/articles/s41586-024-08025-4) (SynthID-Text, Nature 2024)
