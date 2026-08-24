@@ -15,7 +15,7 @@ ____ _    _ _ _ ____ ___ ____ ____ _  _ ____ ____ _  _    ____ ____ _  _ ____ _ 
 [![CI](https://github.com/mohityadav8/ai-watermark-remover/actions/workflows/ci.yml/badge.svg)](https://github.com/mohityadav8/ai-watermark-remover/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Skill: [`skills/remove-ai-marks/`](skills/remove-ai-marks/) · Service: [`service/`](service/)
+Skill: · Service: [`service/`](service/)
 
 </div>
 
@@ -33,6 +33,7 @@ Skill: [`skills/remove-ai-marks/`](skills/remove-ai-marks/) · Service: [`servic
 
 ## 🧭 Contents
 
+- [🖥️ Web app (browser UI)](#-web-app-browser-ui)
 - [🧩 Install (agent skill)](#-install-agent-skill)
 - [⚡ Quick use (scripts)](#-quick-use-scripts)
 - [🌐 HTTP service](#-http-service)
@@ -54,7 +55,70 @@ Skill: [`skills/remove-ai-marks/`](skills/remove-ai-marks/) · Service: [`servic
 - [📄 License](#-license)
 - [📚 Bibliography](#-bibliography)
 
+## 🖥️ Web app (browser UI)
+
+A UI layer sits on top of the same engine, so the whole thing — frontend and backend — runs from this one repo with a single command. Nothing in the engine itself changed; the web app just gives it a browser front end.
+
+```bash
+python3 run_local.py
+```
+
+Then open **http://127.0.0.1:8080**. `run_local.py` starts the cleaning engine and serves the UI together, forwarding `/api/*` to the engine so there's no CORS to configure.
+
+Upload one or many files, in two modes:
+
+- **Inspect** — report AI provenance marks (invisible Unicode, C2PA / EXIF / XMP metadata, doc properties, stylometry score) without changing the file.
+- **Clean** — strip those marks and hand back the cleaned file to download. The document body is preserved; only the marks come out.
+
+Supported: text, Markdown, HTML, PNG, JPEG, WebP, AVIF, HEIC, BMP, GIF, TIFF, SVG, PDF, DOCX, XLSX, PPTX, EPUB, ODT, and common audio/video containers — whatever the engine supports, the UI can send.
+
+<details>
+<summary>Docker deploy, architecture, and API key setup</summary>
+
+### Docker (for servers / AWS)
+
+```bash
+cd deploy
+cp .env.example .env      # optional — set WATERMARKS_SERVER_API_KEY to lock it down
+docker compose up --build -d
+```
+
+Open **http://localhost:8080**. Deploying to AWS and where every key/setting lives: [deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md).
+
+### Architecture
+
+```
+Browser ─▶ nginx (wr-web)
+             ├── /            serves web/ (static UI)
+             └── /api/*  ───▶ Python engine (wr-core :8765)
+```
+
+The UI and API share one origin through nginx, so there is no CORS to deal with, and the engine is never exposed to the internet directly — only nginx is. The UI calls four endpoints on the engine: `GET /health`, `GET /capabilities`, `POST /inspect/batch`, `POST /clean/batch`. The engine's full API (single-file `/inspect` `/clean` `/detect`, `/openapi.json`) is documented below in [HTTP service](#-http-service).
+
+### API key — the short version
+
+The cleaning is fully local; **no third-party AI key is required.** The only key is an *optional* bearer token that locks the service down:
+
+1. `deploy/.env` → `WATERMARKS_SERVER_API_KEY=<random string>`
+2. UI → **Settings** → paste the same value.
+
+Leave it empty for an open service (fine on a private box, not on the public internet).
+
+### Layout
+
+```
+web/            browser UI (no build step): index.html, styles.css, app.js
+run_local.py    one-command local run (no Docker), serves UI on :8080
+deploy/         one-command full-stack deployment (docker-compose.yml, Dockerfile.web,
+                nginx.conf, .env.example, DEPLOYMENT.md)
+service/        the engine (backend), served on :8765
+```
+
+</details>
+
 ## 🧩 Install (agent skill)
+
+> ⚠️ **Known issue:** the `skills/` directory referenced throughout this section (`skills/remove-ai-marks/`, `skills/clean-user-facing-text/`) and the root-level `install_skill.py` are not present in the current `main` branch, so the links below 404. The `Makefile` targets (`install-skill`, `install-claude-code-skill`, …) and [WEBAPP.md](WEBAPP.md) both still assume this directory exists — it needs to be added back to the repo (or these instructions removed) before the skill install flow works. The [HTTP service](#-http-service), [web app](#-web-app-browser-ui), and file/image cleaning below are unaffected — they don't depend on `skills/`.
 
 The skill ships **no code** — it calls the service over HTTP. Install the skill (markdown only) and start the service, then set `WATERMARKS_SERVICE_URL` if it is not `http://127.0.0.1:8765`.
 
